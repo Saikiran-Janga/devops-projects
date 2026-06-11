@@ -2,5 +2,6 @@
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
+terraform.tfvars
 Project-4@tmp
 Project-5@tmp
