@@ -40,5 +40,19 @@ pipeline {
                 '''
             }
         }
+	stage('Deploy Website') {
+ 	   steps {
+        	sh '''
+       		 docker stop website || true
+       		 docker rm website || true
+
+       		 docker pull $IMAGE_NAME:latest
+
+       		 docker run -d -p 80:80 \
+        	--name website \
+        	$IMAGE_NAME:latest
+        	'''
+    		}
+	}
     }
 }
