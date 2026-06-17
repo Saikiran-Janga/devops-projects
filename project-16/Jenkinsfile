@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         IMAGE_NAME = "saikiran1605/devops-website"
+        NEXUS_URL = "http://localhost:8081/repository/devops-artifacts"
     }
 
     stages {
@@ -21,10 +22,38 @@ pipeline {
             }
         }
 
+        stage('Create Artifact') {
+            steps {
+                sh '''
+                tar -czvf project-16-${BUILD_NUMBER}.tar.gz project-16
+                '''
+            }
+        }
+
+        stage('Upload Artifact to Nexus') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'nexus-creds',
+                        usernameVariable: 'NEXUS_USER',
+                        passwordVariable: 'NEXUS_PASS'
+                    )
+                ]) {
+                    sh '''
+                    curl -v -u $NEXUS_USER:$NEXUS_PASS \
+                    --upload-file project-16-${BUILD_NUMBER}.tar.gz \
+                    $NEXUS_URL/project-16-${BUILD_NUMBER}.tar.gz
+                    '''
+                }
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 dir('project-16') {
-                    sh 'docker build -t $IMAGE_NAME:${BUILD_NUMBER} .'
+                    sh '''
+                    docker build -t $IMAGE_NAME:${BUILD_NUMBER} .
+                    '''
                 }
             }
         }
@@ -65,8 +94,9 @@ pipeline {
 
                 docker pull $IMAGE_NAME:latest
 
-                docker run -d -p 80:80 \
+                docker run -d \
                 --name website \
+                -p 80:80 \
                 $IMAGE_NAME:latest
                 '''
             }
