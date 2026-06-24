@@ -1,57 +1,99 @@
 pipeline {
-    agent any
+agent any
 
-    environment {
-        IMAGE_NAME = "saikiran1605/devops-website"
+```
+environment {
+    IMAGE_NAME = "saikiran1605/devops-website"
+}
+
+stages {
+
+    stage('Checkout') {
+        steps {
+            checkout scm
+        }
     }
 
-    stages {
+    stage('Debug') {
+        steps {
+            sh '''
+            echo "Current Directory:"
+            pwd
 
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
+            echo "Workspace Contents:"
+            ls -la
+
+            echo "Project-24 Contents:"
+            ls -la project-24
+            '''
         }
+    }
 
-        stage('Build Docker Image') {
-            steps {
+    stage('Build Docker Image') {
+        steps {
+            sh '''
+            docker build -t $IMAGE_NAME:${BUILD_NUMBER} ./project-24
+            docker tag $IMAGE_NAME:${BUILD_NUMBER} $IMAGE_NAME:latest
+            '''
+        }
+    }
+
+    stage('Docker Login') {
+        steps {
+            withCredentials([
+                usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )
+            ]) {
                 sh '''
-                docker build -t $IMAGE_NAME:${BUILD_NUMBER} .
+                echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
                 '''
             }
         }
+    }
 
-        stage('Docker Login') {
-            steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub-creds',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )
-                ]) {
-                    sh '''
-                    echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                    '''
-                }
-            }
+    stage('Push Image') {
+        steps {
+            sh '''
+            docker push $IMAGE_NAME:${BUILD_NUMBER}
+            docker push $IMAGE_NAME:latest
+            '''
         }
+    }
 
-        stage('Push Image') {
-            steps {
-                sh '''
-                docker push $IMAGE_NAME:${BUILD_NUMBER}
-                '''
-            }
+    stage('Deploy To Kubernetes') {
+        steps {
+            sh '''
+            kubectl set image deployment/website-deployment \
+            website=$IMAGE_NAME:${BUILD_NUMBER}
+
+            kubectl rollout status deployment/website-deployment
+            '''
         }
+    }
 
-        stage('Deploy To Kubernetes') {
-            steps {
-                sh '''
-                kubectl set image deployment/website-deployment \
-                website=$IMAGE_NAME:${BUILD_NUMBER}
-                '''
-            }
+    stage('Verify Deployment') {
+        steps {
+            sh '''
+            kubectl get deployments
+            kubectl get pods
+            '''
         }
     }
 }
+
+post {
+    success {
+        echo 'Deployment Successful!'
+    }
+
+    failure {
+        echo 'Pipeline Failed!'
+    }
+}
+```
+
+}
+
