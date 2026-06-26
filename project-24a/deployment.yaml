@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: project24a-deployment
+
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: project24a
+
+  template:
+    metadata:
+      labels:
+        app: project24a
+
+    spec:
+      containers:
+      - name: website
+        image: saikiran1605/project24a:v1
+
+        ports:
+        - containerPort: 80
